@@ -14,12 +14,12 @@ jobs:
 
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           ref: main
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: "20"
 
@@ -31,9 +31,8 @@ jobs:
         run: echo "PR_TITLE=${{ github.event.pull_request.title }}" >> $GITHUB_ENV
 
       - name: Update version and changelog
-        id: update-version-changelog
         run: |
-          PR_TITLE=${PR_TITLE##* }
+          PR_TITLE="${{ env.PR_TITLE }}"
           VERSION=$(echo $PR_TITLE | grep -oP '\(\K[^\)]+')
           DATE=$(date +"%Y-%m-%d")
           echo "Updating version to $VERSION and changelog"
