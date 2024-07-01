@@ -1,0 +1,37 @@
+name: Release Version
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  create-release:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'Release')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v2
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create Release
+        run: |
+          VERSION=$(cat package.json | jq -r .version)
+          DATE=$(date +"%Y-%m-%d")
+          echo "Creating release for version $VERSION"
+
+          gh release create $VERSION --title "Release $VERSION" --notes "## [$VERSION] - $DATE\n\n$(cat CHANGELOG.md | sed -n '/## \['"$VERSION"'\]/,/\## \[/p' | head -n -1)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

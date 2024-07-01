@@ -1,0 +1,66 @@
+name: Dev to Main Merge
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  update-version:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'Dev into Main')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v2
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Get PR title
+        id: get-pr-title
+        run: echo "::set-output name=pr_title::${{ github.event.pull_request.title }}"
+
+      - name: Update version and changelog
+        id: update-version-changelog
+        run: |
+          PR_TITLE=${{ steps.get-pr-title.outputs.pr_title }}
+          VERSION=${PR_TITLE##* }
+          DATE=$(date +"%Y-%m-%d")
+          echo "Updating version to $VERSION and changelog"
+
+          # Update package.json version
+          npm version $VERSION --no-git-tag-version
+
+          # Update CHANGELOG.md
+          echo "## [$VERSION] - $DATE" > temp_changelog.md
+          git log --pretty=format:"- %s" $(git describe --tags --abbrev=0)..HEAD >> temp_changelog.md
+          echo -e "\n\n$(cat CHANGELOG.md)" >> temp_changelog.md
+          mv temp_changelog.md CHANGELOG.md
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add package.json CHANGELOG.md
+          git commit -m "Update version to ${{ steps.update-version-changelog.outputs.new_version }} and update changelog"
+          git push origin main
+
+      - name: Create Pull Request for release
+        uses: peter-evans/create-pull-request@v3
+        with:
+          commit-message: Update version to ${{ steps.update-version-changelog.outputs.new_version }} and update changelog
+          branch: release-${{ steps.update-version-changelog.outputs.new_version }}
+          title: "Release ${{ steps.update-version-changelog.outputs.new_version }}"
+          body: |
+            ## [${{ steps.update-version-changelog.outputs.new_version }}] - $DATE
+            $(git log --pretty=format:"- %s" $(git describe --tags --abbrev=0)..HEAD)
