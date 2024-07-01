@@ -28,13 +28,13 @@ jobs:
 
       - name: Get PR title
         id: get-pr-title
-        run: echo "::set-output name=pr_title::${{ github.event.pull_request.title }}"
+        run: echo "PR_TITLE=${{ github.event.pull_request.title }}" >> $GITHUB_ENV
 
       - name: Update version and changelog
         id: update-version-changelog
         run: |
-          PR_TITLE=${{ steps.get-pr-title.outputs.pr_title }}
-          VERSION=${PR_TITLE##* }
+          PR_TITLE=${PR_TITLE##* }
+          VERSION=$(echo $PR_TITLE | grep -oP '\(\K[^\)]+')
           DATE=$(date +"%Y-%m-%d")
           echo "Updating version to $VERSION and changelog"
 
@@ -56,7 +56,7 @@ jobs:
           git push origin main
 
       - name: Create Pull Request for release
-        uses: peter-evans/create-pull-request@v3
+        uses: peter-evans/create-pull-request@v4
         with:
           commit-message: Update version to $VERSION and update changelog
           branch: release-$VERSION
